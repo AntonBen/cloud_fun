@@ -1,21 +1,9 @@
 const express = require('express');
 const app = express();
 app.enable('trust proxy');
-
-// By default, the client will authenticate using the service account file
-// specified by the GOOGLE_APPLICATION_CREDENTIALS environment variable and use
-// the project specified by the GOOGLE_CLOUD_PROJECT environment variable. See
-// https://github.com/GoogleCloudPlatform/google-cloud-node/blob/master/docs/authentication.md
-// These environment variables are set automatically on Google App Engine
 const {Datastore} = require('@google-cloud/datastore');
-
-// Instantiate a datastore client
 const datastore = new Datastore();
 
-
-/**
- * Retrieve the latest 10 visit records from the database.
- */
 const getCostumers = () => {
   const query = datastore
     .createQuery('costumer')
@@ -27,31 +15,37 @@ const getCostumers = () => {
 
 app.get('/getCostumers', async (req, res, next) => {
 
-  if(req.query.id === "")
+  try {
+    const [entities] = await getCostumers();
+    res.json(entities)
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/getCostumer', async (req, res, next) => {
+  //get all costumers id
+  if (req.query.id === '' || req.query.id == 'all') {
     try {
       const [entities] = await getCostumers();
       const entityKeys = entities.map(entity => entity[datastore.KEY].id);
-      res
-        .status(200)
-        .set('Content-Type', 'text/plain')
-        .json({id:entityKeys})
-        .end();
+      res.json({id: entityKeys})
     } catch (error) {
       next(error);
     }
-
-  else
+  }
+  //get costumer by id
+  else {
     try {
       const [entities] = await getCostumers();
-      res
-        .status(200)
-        .set('Content-Type', 'text/plain')
-        .json(entities)
-        .end();
+      const entity = entities.filter(entity => 
+        entity[datastore.KEY].id == req.query.id);
+      res.json(entity)
     } catch (error) {
       next(error);
     }
-});
+  }
+})
 
 
 const PORT = process.env.PORT || 8080;
